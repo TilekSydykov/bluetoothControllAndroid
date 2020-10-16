@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
@@ -15,6 +16,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.*
+import kotlin.collections.HashMap
 
 
 class MainActivity : AppCompatActivity() {
@@ -47,10 +49,29 @@ class MainActivity : AppCompatActivity() {
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
 
         mBluetoothAdapter?.let {
-            if (mBluetoothAdapter!!.isEnabled) {
+            if (!it.isEnabled) {
                 val enableBluetooth = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                 startActivityForResult(enableBluetooth, 0)
+            }else{
+                val pairedDevices: Set<BluetoothDevice> = it.bondedDevices
+                val names = arrayListOf<String>()
+                if (pairedDevices.isNotEmpty()) {
+                    listOfDevices = arrayListOf()
+                    for (device in pairedDevices) {
+                        if (device.name.startsWith("HC")) {
+                            listOfDevices.add(device)
+                            names.add(device.name)
+                        }
+                    }
+                    spinner.adapter = ArrayAdapter<String>(this, R.layout.spinner_item, names)
+                }
             }
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if(resultCode == 0){
             val pairedDevices: Set<BluetoothDevice> = mBluetoothAdapter!!.bondedDevices
             val names = arrayListOf<String>()
             if (pairedDevices.isNotEmpty()) {
@@ -58,7 +79,7 @@ class MainActivity : AppCompatActivity() {
                 for (device in pairedDevices) {
                     if (device.name.startsWith("HC")) {
                         listOfDevices.add(device)
-                        names.add(device.name)
+                        names.add(device.address)
                     }
                 }
                 spinner.adapter = ArrayAdapter<String>(this, R.layout.spinner_item, names)
@@ -66,19 +87,30 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    @Throws(IOException::class)
     fun openBT() {
-        val uuid: UUID =
-            UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-        mmDevice?.let {
-            mmSocket = mmDevice!!.createRfcommSocketToServiceRecord(uuid)
-            mmSocket.connect()
-            mmOutputStream = mmSocket.outputStream
-            mmInputStream = mmSocket.inputStream
-            Toast.makeText(applicationContext, "Connected", Toast.LENGTH_SHORT).show()
+        try{
+            val uuid: UUID =
+                UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+            mmDevice?.let {
+                mmSocket = mmDevice!!.createRfcommSocketToServiceRecord(uuid)
+                mmSocket.connect()
+                mmOutputStream = mmSocket.outputStream
+                mmInputStream = mmSocket.inputStream
+                Toast.makeText(applicationContext, "Connected", Toast.LENGTH_SHORT).show()
+                sendData()
+                val b = HashMap<String, String>()
+                b.put("name", mmDevice!!.name)
+                b.put("addr", mmDevice!!.address)
+                b.put("bond", mmDevice!!.bondState.toString())
+                b.put("uuids", mmDevice!!.type.toString())
+                Log.d("hren", b.toString())
+            }
+        }catch (e: IOException){
+            Toast.makeText(this, "Connection Failed", Toast.LENGTH_LONG).show()
         }
     }
 
-
-
+    fun sendData(){
+        mmOutputStream.write("asd".toByteArray())
+    }
 }
